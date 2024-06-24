@@ -5,27 +5,61 @@ import {usePathname} from "next/navigation";
 import dayjs from "dayjs";
 import {Group} from "@/app/(main)/(study)/groups/page";
 
+export type GroupMember = {
+  memberId: number;
+  nickname: string;
+};
+
 const GroupsDetail = ({params}: { params: { id: number } }) => {
   const [group, setGroup] = useState<Group | null>(null);
+  const [groupMember, setGroupMember] = useState<GroupMember[]>([]);
+  const [comment, setComment] = useState('');
+
   const pathname = usePathname();
   const id = pathname.split('/').pop();
-  useEffect(() => {
-    const fetchGroup = async () => {
-      try {
-        const response = await fetch(`http://3.37.237.39:8080/api/v1/study/${id}`);
-        if (response.ok) {
-          const data = await response.json();
-          setGroup(data.data);
-        } else {
-          throw new Error('Failed to fetch the group data');
-        }
-      } catch (error) {
-        console.error('Error fetching group:', error);
-      }
-    };
 
+  const fetchGroup = async () => {
+    try {
+      const response = await fetch(`http://3.37.237.39:8080/api/v1/study/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setGroup(data.data);
+      } else {
+        throw new Error('Failed to fetch the group data');
+      }
+    } catch (error) {
+      console.error('Error fetching group:', error);
+    }
+  };
+
+  const fetchMember = useCallback(async () => {
+    try {
+      const response = await fetch(`http://3.37.237.39:8080/api/v1/member/${id}/list`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        console.log(data);
+        setGroupMember(data.data);
+      } else {
+        throw new Error('Network response was not ok.');
+      }
+    } catch (e) {
+      console.error('Failed to fetch group member:', e);
+    }
+  }, []);
+
+  useEffect(() => {
     fetchGroup();
+    fetchMember();
   }, [id]);
+
+  useEffect(() => {
+
+  }, []);
 
   const studyJoin = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
@@ -41,18 +75,19 @@ const GroupsDetail = ({params}: { params: { id: number } }) => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "스터디 참여 신청에 실패하였습니다.");
+        throw new Error(errorData?.message ?? "스터디 참여 신청에 실패하였습니다.");
       }
 
       alert("스터디 참여 신청이 완료되었습니다.");
     } catch (error) {
-      alert("스터디 참여 신청에 실패하였습니다.");
-      console.error('Error fetching group:', error);
+      alert(error);
     }
-  }, []);
+  }, [id]);
 
   const addComment = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
+
+    if (!comment) return alert("댓글을 입력해 주세요");
 
     try {
       const response = await fetch(`http://3.37.237.39:8080/api/v1/study/comment/${id}`, {
@@ -61,17 +96,20 @@ const GroupsDetail = ({params}: { params: { id: number } }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        body: JSON.stringify({
+          comment: comment,
+        })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "스터디 참여 신청에 실패하였습니다.");
+        throw new Error(errorData.message || "댓글 등록이 실패하였습니다.");
       }
 
     } catch (error) {
       console.error('Error fetching group:', error);
     }
-  }, []);
+  }, [comment, id]);
 
 
   if (!group) {
@@ -116,13 +154,26 @@ const GroupsDetail = ({params}: { params: { id: number } }) => {
           </button>
         </div>
 
-
         <div className="grid grid-cols-5 gap-y-5 my-10 text-medium-18px">
           <div className="py-5">
             스터디장
           </div>
           <div className="col-span-4 flex items-center">
             {group.createdMember.nickname}
+          </div>
+          <div className="py-5">
+            참여 스터디원
+          </div>
+          <div className="col-span-4 column justify-center">
+            {groupMember.length ? groupMember.map((e) => (
+              <span key={e.memberId}>
+                {e.nickname}
+              </span>
+            )) : (
+              <span>
+                참여중인 스터디원이 없습니다.
+              </span>
+            )}
           </div>
           <div className="py-5">
             스터디 기간
@@ -145,9 +196,14 @@ const GroupsDetail = ({params}: { params: { id: number } }) => {
             <input
               className="w-full border-b border-b-neutral-300 p-2.5 my-5 focus:outline-none focus:border-b-neutral-800"
               placeholder="댓글 추가하기"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
             />
             <button
-              className="w-20 py-2.5 bg-lime-400 rounded-2xl text-semibold-16px text-neutral-800 border border-lime-500 hover:bg-green-500">
+              className="w-20 py-2.5 bg-lime-400 rounded-2xl text-semibold-16px text-neutral-800 border border-lime-500 hover:bg-green-500"
+              type={"button"}
+              onClick={addComment}
+            >
               댓글
             </button>
           </div>
@@ -165,11 +221,8 @@ const GroupsDetail = ({params}: { params: { id: number } }) => {
               </div>
             </div>
           </div>
-
-
         </div>
       </div>
-
     </div>
   );
 };
