@@ -83,6 +83,10 @@ export const Header = () => {
           >
             {logged ? "로그아웃" : "로그인 / 가입"}
           </Button>
+          <button
+            className="border border-black p-5 bg-lime-400 rounded-full"
+            type="button"
+          />
         </div>
       </div>
     </div>
